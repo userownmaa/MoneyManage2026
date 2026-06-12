@@ -1,0 +1,449 @@
+{% extends "base.html" %}
+{% block title %}Админ-панель{% endblock %}
+
+{% block nav %}
+<li class="nav-item"><a class="nav-link active" href="{{ url_for('admin.admin_dashboard') }}">Админ-панель</a></li>
+{% endblock %}
+
+{% block content %}
+<h2 class="mb-4">Панель администратора</h2>
+
+
+<!-- Управление приложением -->
+<div class="card mb-4">
+    <div class="card-header bg-primary text-white">
+        <h5 class="mb-0">Управление приложением</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <div class="d-grid">
+                    <button class="btn btn-outline-primary" onclick="viewLogs()">
+                        <i class="bi bi-file-text"></i> Просмотр логов
+                    </button>
+                </div>
+            </div>
+            <div class="col-md-6 mb-3">
+                <div class="d-grid">
+                    <button class="btn btn-outline-success" onclick="backupDatabase()">
+                        <i class="bi bi-database"></i> Создать резервную копию БД
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Управление пользователями -->
+<div class="card mb-4">
+    <div class="card-header bg-info text-white">
+        <h5 class="mb-0">Управление пользователями</h5>
+    </div>
+    <div class="card-body">
+        <div class="row mb-3">
+            <div class="col-md-6">
+                <div class="input-group">
+                    <input type="text" class="form-control" id="searchUser" placeholder="Поиск пользователя...">
+                    <button class="btn btn-primary" onclick="searchUsers()">
+                        <i class="bi bi-search"></i> Найти
+                    </button>
+                </div>
+            </div>
+            <div class="col-md-6 text-end">
+                <button class="btn btn-success" onclick="showAddUserModal()">
+                    <i class="bi bi-person-plus"></i> Добавить пользователя
+                </button>
+            </div>
+        </div>
+        
+        <div class="table-responsive">
+            <table class="table table-hover" id="usersTable">
+                <thead class="table-light">
+                    <tr>
+                        <th>ID</th>
+                        <th>Логин</th>
+                        <th>Email</th>
+                        <th>Роль</th>
+                        <th>Семья</th>
+                        <th>Статус</th>
+                        <th class="text-center">Действия</th>
+                    </tr>
+                </thead>
+                <tbody id="usersTableBody">
+                    {% for user in users %}
+                    <tr>
+                        <td>{{ user.id }}</td>
+                        <td>{{ user.username }}</td>
+                        <td>{{ user.email }}</td>
+                        <td>
+                            {% if user.role == 'admin' %}
+                                <span class="badge bg-danger">Администратор</span>
+                            {% elif user.role == 'owner' %}
+                                <span class="badge bg-success">Владелец</span>
+                            {% else %}
+                                <span class="badge bg-secondary">Участник</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ user.family.name if user.family else '—' }}</td>
+                        <td>
+                            {% if user.is_active %}
+                                <span class="badge bg-success">Активен</span>
+                            {% else %}
+                                <span class="badge bg-danger">Заблокирован</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            <button class="btn btn-sm btn-outline-info me-1" onclick="viewUserDetails({{ user.id }})" title="Просмотр">
+                                <i class="bi bi-eye"></i>
+                            </button>
+                            <button class="btn btn-sm btn-outline-warning me-1" onclick="resetUserPassword({{ user.id }})" title="Сброс пароля">
+                                <i class="bi bi-key"></i>
+                            </button>
+                            {% if user.role != 'admin' %}
+                            <button class="btn btn-sm btn-outline-danger" onclick="deleteUser({{ user.id }})" title="Удалить">
+                                <i class="bi bi-trash"></i>
+                            </button>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Управление файлами и транзакциями -->
+<div class="card mb-4">
+    <div class="card-header bg-secondary text-white">
+        <h5 class="mb-0">Управление файлами и транзакциями</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6 mb-3">
+                <div class="d-grid">
+                    <a href="{{ url_for('admin.view_all_transactions') }}" class="btn btn-outline-primary">
+                        <i class="bi bi-list-ul"></i> Просмотр всех транзакций
+                    </a>
+                </div>
+            </div>
+            <div class="col-md-6 mb-3">
+                <div class="d-grid">
+                    <a href="{{ url_for('admin.view_all_files') }}" class="btn btn-outline-info">
+                        <i class="bi bi-files"></i> Просмотр всех загруженных файлов
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно добавления пользователя -->
+<div class="modal fade" id="addUserModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Добавить пользователя</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('admin.add_user') }}">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Логин</label>
+                        <input type="text" name="username" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Email</label>
+                        <input type="email" name="email" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Пароль</label>
+                        <input type="password" name="password" class="form-control" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Роль</label>
+                        <select name="role" class="form-select" required id="adminRoleSelect">
+                            <option value="member">Участник</option>
+                            <option value="owner">Владелец</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3" id="adminFamilySelectDiv">
+                        <label class="form-label">Семья <span class="text-danger" id="familyRequired">*</span></label>
+                        <select name="family_id" class="form-select" id="adminFamilySelect">
+                            <option value="">-- Выберите семью --</option>
+                            {% for family in families %}
+                            <option value="{{ family.id }}">{{ family.name }} (код: {{ family.invite_code }})</option>
+                            {% endfor %}
+                        </select>
+                        <small class="text-muted">Выберите семью, к которой присоединится участник</small>
+                    </div>
+                    
+                    <div class="mb-3" id="adminOwnerInfo" style="display: none;">
+                        <div class="alert alert-info">
+                            <i class="bi bi-info-circle"></i> Для владельца будет автоматически создана новая семья
+                        </div>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="submit" class="btn btn-success">Добавить</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно просмотра пользователя -->
+<div class="modal fade" id="viewUserModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Информация о пользователе</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body" id="viewUserBody">
+                ...
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Закрыть</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно сброса пароля -->
+<div class="modal fade" id="resetPasswordModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Сброс пароля</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="resetUserId">
+                <div class="mb-3">
+                    <label class="form-label">Пользователь</label>
+                    <input type="text" id="resetUsername" class="form-control" readonly disabled>
+                </div>
+                <div class="mb-3">
+                    <label class="form-label">Новый пароль</label>
+                    <input type="password" id="resetPassword" class="form-control" placeholder="Минимум 4 символа">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-primary" onclick="confirmResetPassword()">Сбросить пароль</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно удаления пользователя -->
+<div class="modal fade" id="deleteUserModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Удаление пользователя</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <div class="modal-body">
+                <input type="hidden" id="deleteUserId">
+                <p>Вы уверены, что хотите удалить пользователя <strong id="deleteUsername"></strong>?</p>
+                <p class="text-danger">Все транзакции, чеки и данные пользователя будут безвозвратно удалены!</p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                <button type="button" class="btn btn-danger" onclick="confirmDeleteUser()">Удалить</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function viewUserDetails(userId) {
+    fetch(`/admin/api/get_user/${userId}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('viewUserBody').innerHTML = `
+                    <p><strong>ID:</strong> ${data.id}</p>
+                    <p><strong>Логин:</strong> ${data.username}</p>
+                    <p><strong>Email:</strong> ${data.email}</p>
+                    <p><strong>Роль:</strong> ${data.role === 'admin' ? 'Администратор' : (data.role === 'owner' ? 'Владелец' : 'Участник')}</p>
+                    <p><strong>Семья:</strong> ${data.family_name}</p>
+                    <p><strong>Бюджет:</strong> ${data.budget.toFixed(0)} ₽ (${data.budget_period})</p>
+                `;
+                new bootstrap.Modal(document.getElementById('viewUserModal')).show();
+            }
+        });
+}
+
+// Управление формой добавления пользователя
+const adminRoleSelect = document.getElementById('adminRoleSelect');
+const adminFamilySelectDiv = document.getElementById('adminFamilySelectDiv');
+const adminOwnerInfo = document.getElementById('adminOwnerInfo');
+const adminFamilySelect = document.getElementById('adminFamilySelect');
+
+if (adminRoleSelect) {
+    adminRoleSelect.addEventListener('change', function() {
+        if (this.value === 'owner') {
+            adminFamilySelectDiv.style.display = 'none';
+            adminOwnerInfo.style.display = 'block';
+            adminFamilySelect.required = false;
+            adminFamilySelect.value = '';
+        } else {
+            adminFamilySelectDiv.style.display = 'block';
+            adminOwnerInfo.style.display = 'none';
+            adminFamilySelect.required = true;
+        }
+    });
+}
+
+// Инициализация при загрузке
+if (adminRoleSelect && adminRoleSelect.value === 'owner') {
+    adminFamilySelectDiv.style.display = 'none';
+    adminOwnerInfo.style.display = 'block';
+    adminFamilySelect.required = false;
+} else {
+    adminFamilySelectDiv.style.display = 'block';
+    adminOwnerInfo.style.display = 'none';
+    adminFamilySelect.required = true;
+}
+
+function showResetPasswordModal(userId, username) {
+    document.getElementById('resetUserId').value = userId;
+    document.getElementById('resetUsername').value = username;
+    document.getElementById('resetPassword').value = '';
+    new bootstrap.Modal(document.getElementById('resetPasswordModal')).show();
+}
+
+function confirmResetPassword() {
+    const userId = document.getElementById('resetUserId').value;
+    const newPassword = document.getElementById('resetPassword').value;
+    
+    if (!newPassword || newPassword.length < 4) {
+        alert('Пароль должен содержать минимум 4 символа');
+        return;
+    }
+    
+    fetch(`/admin/api/reset_password/${userId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ password: newPassword })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            bootstrap.Modal.getInstance(document.getElementById('resetPasswordModal')).hide();
+            alert(data.message);
+        } else {
+            alert('Ошибка: ' + data.message);
+        }
+    });
+}
+
+function showDeleteUserModal(userId, username) {
+    document.getElementById('deleteUserId').value = userId;
+    document.getElementById('deleteUsername').innerHTML = username;
+    new bootstrap.Modal(document.getElementById('deleteUserModal')).show();
+}
+
+function confirmDeleteUser() {
+    const userId = document.getElementById('deleteUserId').value;
+    
+    fetch(`/admin/api/delete_user/${userId}`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            bootstrap.Modal.getInstance(document.getElementById('deleteUserModal')).hide();
+            alert(data.message);
+            location.reload();
+        } else {
+            alert('Ошибка: ' + data.message);
+        }
+    });
+}
+
+function updateActionButtons() {
+    document.querySelectorAll('#usersTableBody .btn-outline-info').forEach(btn => {
+        const userId = btn.getAttribute('onclick').match(/\d+/)[0];
+        btn.setAttribute('onclick', `viewUserDetails(${userId})`);
+    });
+    
+    document.querySelectorAll('#usersTableBody .btn-outline-warning').forEach(btn => {
+        const userId = btn.getAttribute('onclick').match(/\d+/)[0];
+        const row = btn.closest('tr');
+        const username = row.cells[1].innerText;
+        btn.setAttribute('onclick', `showResetPasswordModal(${userId}, '${username}')`);
+    });
+    
+    document.querySelectorAll('#usersTableBody .btn-outline-danger').forEach(btn => {
+        const userId = btn.getAttribute('onclick').match(/\d+/)[0];
+        const row = btn.closest('tr');
+        const username = row.cells[1].innerText;
+        btn.setAttribute('onclick', `showDeleteUserModal(${userId}, '${username}')`);
+    });
+}
+
+document.addEventListener('DOMContentLoaded', function() {
+    updateActionButtons();
+});
+
+function searchUsers() {
+    let searchTerm = document.getElementById('searchUser').value.toLowerCase();
+    let rows = document.querySelectorAll('#usersTableBody tr');
+    
+    rows.forEach(row => {
+        let text = row.textContent.toLowerCase();
+        if (text.includes(searchTerm)) {
+            row.style.display = '';
+        } else {
+            row.style.display = 'none';
+        }
+    });
+}
+
+function viewLogs() {
+    window.open('/admin/logs', '_blank');
+}
+
+function backupDatabase() {
+    fetch('/admin/api/backup', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' }
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert('Резервная копия создана: ' + data.filename);
+        } else {
+            alert('Ошибка: ' + data.message);
+        }
+    });
+}
+
+function viewAllFiles() {
+    window.open('/admin/files', '_blank');
+}
+
+
+function showAddUserModal() {
+    new bootstrap.Modal(document.getElementById('addUserModal')).show();
+}
+
+// Показывать/скрывать выбор семьи в зависимости от роли
+document.querySelector('select[name="role"]')?.addEventListener('change', function() {
+    const familyDiv = document.getElementById('familySelectDiv');
+    if (this.value === 'owner') {
+        familyDiv.style.display = 'none';
+        document.querySelector('select[name="family_id"]').value = '';
+    } else {
+        familyDiv.style.display = 'block';
+    }
+});
+</script>
+{% endblock %}

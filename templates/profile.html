@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% block title %}Профиль{% endblock %}
+
+{% block nav %}
+<li class="nav-item"><a class="nav-link" href="{{ url_for('main.owner_dashboard') }}">Главная</a></li>
+{% endblock %}
+
+{% block content %}
+<h2 class="mb-4">Профиль пользователя</h2>
+
+<div class="row">
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">Личные данные</h5>
+            </div>
+            <div class="card-body">
+                <p><strong>Логин:</strong> {{ user.username }}</p>
+                <p><strong>Email:</strong> {{ user.email }}</p>
+                <p><strong>Роль:</strong> 
+                    {% if user.role == 'owner' %}
+                        Владелец семьи
+                    {% elif user.role == 'admin' %}
+                        Администратор
+                    {% else %}
+                        Участник
+                    {% endif %}
+                </p>
+                {% if user.family %}
+                <p><strong>Семья:</strong> {{ user.family.name }}</p>
+                {% endif %}
+                <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#editProfileModal">
+                    <i class="bi bi-pencil"></i> Изменить данные
+                </button>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-md-6">
+        <div class="card">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0">Участники семьи</h5>
+            </div>
+            <div class="card-body">
+                <ul class="list-group">
+                    {% for member in family_members %}
+                    <li class="list-group-item">
+                        {{ member.username }} 
+                        {% if member.role == 'owner' %}
+                            <span class="badge bg-success">Владелец</span>
+                        {% elif member.role == 'admin' %}
+                            <span class="badge bg-danger">Админ</span>
+                        {% else %}
+                            <span class="badge bg-secondary">Участник</span>
+                        {% endif %}
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Модальное окно редактирования профиля -->
+<div class="modal fade" id="editProfileModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title">Редактировать профиль</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+            </div>
+            <form method="POST" action="{{ url_for('main.edit_profile') }}">
+                <div class="modal-body">
+                    <div class="mb-3">
+                        <label class="form-label">Логин</label>
+                        <input type="text" name="username" class="form-control" value="{{ user.username }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Email</label>
+                        <input type="email" name="email" class="form-control" value="{{ user.email }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Новый пароль (оставьте пустым, если не хотите менять)</label>
+                        <input type="password" name="password" class="form-control" placeholder="Введите новый пароль">
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label">Подтверждение пароля</label>
+                        <input type="password" name="password2" class="form-control" placeholder="Повторите новый пароль">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Отмена</button>
+                    <button type="submit" class="btn btn-primary">Сохранить изменения</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

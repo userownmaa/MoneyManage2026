@@ -1,0 +1,23 @@
+venv/
+env/
+.venv/
+
+instance/
+*.db
+*.sqlite3
+
+.env
+
+__pycache__/
+*.pyc
+
+# logs/
+# uploads/
+# backups/
+
+logs/*.log
+logs/*.log.*
+backups/*.sql
+uploads/*.jpg
+uploads/*.png
+uploads/*.pdf
